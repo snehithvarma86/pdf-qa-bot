@@ -1,0 +1,12 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@langchain/community": "^0.0.34",
+    "@langchain/openai": "^0.0.14",
+    "formidable": "^3.5.1",
+    "langchain": "^0.1.17",
+    "pdf-parse": "^1.1.1"
+  }
+} 

@@ -2,6 +2,10 @@
   functions = "netlify/functions"
   publish = "."
 
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["pdf-parse"]
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

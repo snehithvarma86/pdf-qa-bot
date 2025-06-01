@@ -2,9 +2,6 @@ import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { FaissStore } from "@langchain/community/vectorstores/faiss";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import multer from 'multer';
-import { IncomingForm } from 'formidable';
-import { promises as fs } from 'fs';
 
 // Initialize embeddings
 const embeddings = new OpenAIEmbeddings();
@@ -22,25 +19,30 @@ export const handler = async (event, context) => {
     }
 
     try {
-        // Parse the multipart form data
-        const form = new IncomingForm();
-        const { fields, files } = await new Promise((resolve, reject) => {
-            form.parse(event.body, (err, fields, files) => {
-                if (err) reject(err);
-                resolve({ fields, files });
-            });
-        });
+        // Check if the request is multipart/form-data
+        if (!event.headers['content-type']?.includes('multipart/form-data')) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: 'Content type must be multipart/form-data' })
+            };
+        }
 
-        const file = files.pdf;
-        if (!file) {
+        // Parse the multipart form data
+        const boundary = event.headers['content-type'].split('boundary=')[1];
+        const parts = event.body.split('--' + boundary);
+        
+        // Find the file part
+        const filePart = parts.find(part => part.includes('filename='));
+        if (!filePart) {
             return {
                 statusCode: 400,
                 body: JSON.stringify({ error: 'No file uploaded' })
             };
         }
 
-        // Read the file
-        const fileBuffer = await fs.readFile(file.path);
+        // Extract the file content
+        const fileContent = filePart.split('\r\n\r\n')[1].split('\r\n')[0];
+        const fileBuffer = Buffer.from(fileContent, 'base64');
 
         // Load and process the PDF
         const loader = new PDFLoader(fileBuffer);
@@ -56,17 +58,24 @@ export const handler = async (event, context) => {
         // Create the vector store
         currentVectorStore = await FaissStore.fromDocuments(splitDocs, embeddings);
 
-        // Clean up the temporary file
-        await fs.unlink(file.path);
-
         return {
             statusCode: 200,
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            },
             body: JSON.stringify({ message: 'PDF processed successfully' })
         };
     } catch (error) {
         console.error('Error processing PDF:', error);
         return {
             statusCode: 500,
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            },
             body: JSON.stringify({ error: 'Error processing PDF' })
         };
     }
