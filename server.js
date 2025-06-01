@@ -8,6 +8,9 @@ import { FaissStore } from "@langchain/community/vectorstores/faiss";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { ChatOpenAI } from "@langchain/openai";
 import * as dotenv from "dotenv";
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -15,26 +18,33 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// Configure multer for PDF upload
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/')
-    },
-    filename: function (req, file, cb) {
-        cb(null, file.originalname)
-    }
+// Security middleware
+app.use(helmet());
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*'
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
 });
+app.use(limiter);
 
+// Configure multer for memory storage instead of disk storage
 const upload = multer({ 
-    storage: storage,
+    storage: multer.memoryStorage(),
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') {
             cb(null, true);
         } else {
             cb(new Error('Only PDF files are allowed'));
         }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
     }
 });
 
@@ -48,14 +58,24 @@ const embeddings = new OpenAIEmbeddings();
 // Store for the current vector store
 let currentVectorStore = null;
 
+// Error handling middleware
+const errorHandler = (err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ 
+        error: process.env.NODE_ENV === 'production' 
+            ? 'Internal server error' 
+            : err.message 
+    });
+};
+
 app.post('/upload', upload.single('pdf'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        // Load and process the PDF
-        const loader = new PDFLoader(req.file.path);
+        // Load and process the PDF from buffer
+        const loader = new PDFLoader(req.file.buffer);
         const docs = await loader.load();
 
         // Split the documents into chunks
@@ -65,9 +85,8 @@ app.post('/upload', upload.single('pdf'), async (req, res) => {
         });
         const splitDocs = await textSplitter.splitDocuments(docs);
 
-        // Create and save the vector store
+        // Create the vector store
         currentVectorStore = await FaissStore.fromDocuments(splitDocs, embeddings);
-        await currentVectorStore.save("faiss_store");
 
         res.json({ message: 'PDF processed successfully' });
     } catch (error) {
@@ -112,14 +131,9 @@ If the answer is not in the context, say "I don't know."`;
     }
 });
 
-// Create uploads directory if it doesn't exist
-import { mkdir } from 'fs/promises';
-try {
-    await mkdir('uploads', { recursive: true });
-} catch (error) {
-    console.error('Error creating uploads directory:', error);
-}
+// Apply error handling middleware
+app.use(errorHandler);
 
 app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+    console.log(`Server running on port ${port}`);
 }); 
