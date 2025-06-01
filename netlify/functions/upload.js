@@ -2,18 +2,21 @@ import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { FaissStore } from "@langchain/community/vectorstores/faiss";
 import { OpenAIEmbeddings } from "@langchain/openai";
+import { setVectorStore } from './shared.js';
 
 // Initialize embeddings
 const embeddings = new OpenAIEmbeddings();
-
-// Store for the current vector store (Note: this will reset on cold starts)
-let currentVectorStore = null;
 
 export const handler = async (event, context) => {
     // Only allow POST
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            },
             body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
@@ -23,6 +26,11 @@ export const handler = async (event, context) => {
         if (!event.headers['content-type']?.includes('multipart/form-data')) {
             return {
                 statusCode: 400,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
                 body: JSON.stringify({ error: 'Content type must be multipart/form-data' })
             };
         }
@@ -36,6 +44,11 @@ export const handler = async (event, context) => {
         if (!filePart) {
             return {
                 statusCode: 400,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
                 body: JSON.stringify({ error: 'No file uploaded' })
             };
         }
@@ -55,8 +68,9 @@ export const handler = async (event, context) => {
         });
         const splitDocs = await textSplitter.splitDocuments(docs);
 
-        // Create the vector store
-        currentVectorStore = await FaissStore.fromDocuments(splitDocs, embeddings);
+        // Create the vector store and save it to shared state
+        const vectorStore = await FaissStore.fromDocuments(splitDocs, embeddings);
+        setVectorStore(vectorStore);
 
         return {
             statusCode: 200,

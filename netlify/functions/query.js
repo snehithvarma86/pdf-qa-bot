@@ -1,7 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
-
-// Store for the current vector store (Note: this will reset on cold starts)
-let currentVectorStore = null;
+import { getVectorStore } from './shared.js';
 
 export const handler = async (event, context) => {
     // Handle CORS preflight requests
@@ -31,6 +29,7 @@ export const handler = async (event, context) => {
 
     try {
         const { question } = JSON.parse(event.body);
+        const currentVectorStore = getVectorStore();
         
         if (!currentVectorStore) {
             return {

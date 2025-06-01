@@ -93,11 +93,14 @@
         async function uploadPDF() {
             const fileInput = document.getElementById('pdfFile');
             const file = fileInput.files[0];
+            const uploadStatus = document.getElementById('uploadStatus');
+            
             if (!file) {
-                alert('Please select a PDF file');
+                uploadStatus.textContent = 'Please select a PDF file';
                 return;
             }
 
+            uploadStatus.textContent = 'Uploading...';
             const formData = new FormData();
             formData.append('pdf', file);
 
@@ -106,24 +109,30 @@
                     method: 'POST',
                     body: formData
                 });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Upload failed');
+                }
+                
                 const result = await response.json();
-                document.getElementById('uploadStatus').textContent = 'PDF uploaded successfully!';
+                uploadStatus.textContent = 'PDF uploaded successfully!';
             } catch (error) {
-                document.getElementById('uploadStatus').textContent = 'Error uploading PDF';
+                uploadStatus.textContent = `Error: ${error.message}`;
                 console.error('Error:', error);
             }
         }
 
         async function askQuestion() {
             const question = document.getElementById('question').value;
-            if (!question) {
-                alert('Please enter a question');
-                return;
-            }
-
             const loading = document.getElementById('loading');
             const response = document.getElementById('response');
             
+            if (!question) {
+                response.textContent = 'Please enter a question';
+                return;
+            }
+
             loading.style.display = 'block';
             response.textContent = '';
 
@@ -135,10 +144,16 @@
                     },
                     body: JSON.stringify({ question })
                 });
+
+                if (!result.ok) {
+                    const error = await result.json();
+                    throw new Error(error.error || 'Query failed');
+                }
+
                 const data = await result.json();
                 response.textContent = data.answer;
             } catch (error) {
-                response.textContent = 'Error getting response';
+                response.textContent = `Error: ${error.message}`;
                 console.error('Error:', error);
             } finally {
                 loading.style.display = 'none';
