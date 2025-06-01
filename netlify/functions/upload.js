@@ -8,6 +8,18 @@ import { setVectorStore } from './shared.js';
 const embeddings = new OpenAIEmbeddings();
 
 export const handler = async (event, context) => {
+    // Handle CORS preflight requests
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            }
+        };
+    }
+
     // Only allow POST
     if (event.httpMethod !== 'POST') {
         return {
@@ -55,6 +67,18 @@ export const handler = async (event, context) => {
 
         // Extract the file content
         const fileContent = filePart.split('\r\n\r\n')[1].split('\r\n')[0];
+        if (!fileContent) {
+            return {
+                statusCode: 400,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
+                body: JSON.stringify({ error: 'Invalid file content' })
+            };
+        }
+
         const fileBuffer = Buffer.from(fileContent, 'base64');
 
         // Load and process the PDF
@@ -90,7 +114,7 @@ export const handler = async (event, context) => {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Headers': 'Content-Type'
             },
-            body: JSON.stringify({ error: 'Error processing PDF' })
+            body: JSON.stringify({ error: 'Error processing PDF: ' + error.message })
         };
     }
 }; 

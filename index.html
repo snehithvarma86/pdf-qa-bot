@@ -100,6 +100,11 @@
                 return;
             }
 
+            if (file.type !== 'application/pdf') {
+                uploadStatus.textContent = 'Please select a PDF file';
+                return;
+            }
+
             uploadStatus.textContent = 'Uploading...';
             const formData = new FormData();
             formData.append('pdf', file);
@@ -110,12 +115,12 @@
                     body: formData
                 });
                 
+                const result = await response.json();
+                
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Upload failed');
+                    throw new Error(result.error || 'Upload failed');
                 }
                 
-                const result = await response.json();
                 uploadStatus.textContent = 'PDF uploaded successfully!';
             } catch (error) {
                 uploadStatus.textContent = `Error: ${error.message}`;
@@ -145,12 +150,12 @@
                     body: JSON.stringify({ question })
                 });
 
+                const data = await result.json();
+
                 if (!result.ok) {
-                    const error = await result.json();
-                    throw new Error(error.error || 'Query failed');
+                    throw new Error(data.error || 'Query failed');
                 }
 
-                const data = await result.json();
                 response.textContent = data.answer;
             } catch (error) {
                 response.textContent = `Error: ${error.message}`;
