@@ -85,6 +85,11 @@
     </div>
 
     <script>
+        // Get the base URL for API calls
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : window.location.origin;
+
         async function uploadPDF() {
             const fileInput = document.getElementById('pdfFile');
             const file = fileInput.files[0];
@@ -97,7 +102,7 @@
             formData.append('pdf', file);
 
             try {
-                const response = await fetch('/upload', {
+                const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
                     method: 'POST',
                     body: formData
                 });
@@ -123,7 +128,7 @@
             response.textContent = '';
 
             try {
-                const result = await fetch('/query', {
+                const result = await fetch(`${API_BASE_URL}/.netlify/functions/query`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
