@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+
+# Uploaded files
+uploads/
+
+# Vector store
+faiss_store/
+
+# IDE and OS files
+.DS_Store
+.vscode/
+*.log 
